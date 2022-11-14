@@ -1,6 +1,6 @@
 FROM alpine:latest
 
-RUN apk add --no-cache curl nodejs npm
+RUN apk add --no-cache curl nodejs npm gcc g++ make python3
 
 ENV SSL_VERSION=1.0.2k
 

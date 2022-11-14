@@ -1,5 +1,9 @@
 import { createReadStream } from 'fs';
+import { createRequire } from 'module';
 
+// Welcome to the future!
+// This is the only way to import N-API files in ESM.
+const text = createRequire(import.meta.url)('./text.node');
 
 const stream = createReadStream([...process.argv].pop());
 const words = new Map();
@@ -10,11 +14,12 @@ stream.on('open', () => {
 
 stream.on('data', buffer => {
     buffer.toString().split(' ').forEach(word => {
-        const cleanWord = word.toLowerCase().match(/[a-z\-]+/);
+        // !!! This is extrememe slow (4m10s) !!!
+        const cleanWord = text.getText(word.toLowerCase());
 
-        if (!cleanWord || !cleanWord[0].length) return;
+        if (!cleanWord.length) return;
 
-        const lowerCaseWord = cleanWord[0];
+        const lowerCaseWord = cleanWord;
 
         if (words.has(lowerCaseWord)) {
             words.set(lowerCaseWord, words.get(lowerCaseWord) + 1);
