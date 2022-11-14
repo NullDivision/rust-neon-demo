@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.mjs",
   "scripts": {
-    "build": "RUSTFLAGS=\"-C target-feature=-crt-static\" cargo-cp-artifact -nc text.node -- cargo build --message-format=json-render-diagnostics",
+    "build": "RUSTFLAGS=\"-C target-feature=-crt-static\" cargo-cp-artifact -nc text.node -- cargo build --release --message-format=json-render-diagnostics",
     "start": "node index.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
