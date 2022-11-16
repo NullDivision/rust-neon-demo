@@ -4,36 +4,24 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{ BufRead, BufReader, BufWriter, Error, Write };
 
-fn build_word_counter(buf: BufReader<File>) -> HashMap<String, u32> {
+fn build_word_counter(buf: BufReader<File>) -> Result<HashMap<String, u32>, Error> {
     println!("Reading file");
 
     let mut word_count: HashMap<String, u32> = HashMap::new();
-    let re = regex::Regex::new(r"\w+").unwrap();
+    let re = regex::Regex::new(r"\w+").expect("Failed to compile regex");
 
     for line in buf.lines() {
-        match line {
-            Ok(line) => {
-                let lowercase_line = line.to_lowercase();
-                let words = lowercase_line.split_whitespace();
+        let lowercase_line = line?.to_lowercase();
+        let words = lowercase_line.split_whitespace();
 
-                for word in words {
-                    let capture = re.find(&word);
-
-                    match capture {
-                        Some(capture) => {
-                            let word = capture.as_str();
-
-                            word_count.entry(word.to_string()).and_modify(|c| *c += 1).or_insert(1);
-                        },
-                        None => continue
-                    }
-                }
+        for word in words {
+            if let Some(word_match) = re.find(&word) {
+                word_count.entry(word_match.as_str().to_string()).and_modify(|c| *c += 1).or_insert(1);
             }
-            Err(_) => continue
         }
     }
 
-    word_count
+    Ok(word_count)
 }
 
 fn to_sorted_vec<'a>(word_count: &'a HashMap<String, u32>) -> Vec<(&'a String, &'a u32)> {
@@ -53,51 +41,38 @@ fn write_to_file(word_count_vec: Vec<(&String, &u32)>) -> Result<(), Error> {
         count_length = max(count_length, count.to_string().len());
     }
 
-    write!(
-        &mut writer,
-        "{:word_length$} | {:count_length$}\n",
-        "Word",
-        "Count",
-        word_length = word_length,
-        count_length = count_length
-    ).expect("Unable to write to file");
-    writer.write_all("-".repeat(word_length + word_length + 3).as_bytes()).unwrap();
-    writer.write_all("\n".as_bytes()).unwrap();
+    write!(&mut writer, "Word{:word_length$} | Count{:count_length$}\n", "", "")?;
+    writer.write_all("-".repeat(word_length + count_length + 3).as_bytes())?;
+    writer.write_all("\n".as_bytes())?;
 
     for (word, count) in &word_count_vec {
-        write!(
-            &mut writer,
-            "{:word_length$} | {:count_length$}\n",
-            word,
-            count,
-            word_length = word_length,
-            count_length = count_length
-        ).expect("Unable to write to file");
+        write!(&mut writer, "{word:word_length$} | {count:count_length$}\n")?;
     }
 
-    writer.flush().unwrap();
+    writer.flush()?;
 
     Ok(())
 }
 
-fn count_words(mut cx: FunctionContext) -> JsResult<JsString> {
+fn count_words_impl(filepath: &str) -> Result<(), Error> {
+    let word_counter = build_word_counter(BufReader::new(File::open(filepath)?))?;
+    let word_count_vec = to_sorted_vec(&word_counter);
+
+    println!("Writing file");
+
+    write_to_file(word_count_vec)?;
+
+    Ok(())
+}
+
+fn count_words(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let filepath = cx.argument::<JsString>(0)?.value(&mut cx);
 
     println!("Counting words in {}", filepath);
 
-    match File::open(filepath) {
-        Ok(file) => {
-            let word_count = build_word_counter(BufReader::new(file));
-            let word_count_vec = to_sorted_vec(&word_count);
-
-            println!("Writing file");
-
-            match write_to_file(word_count_vec) {
-                Ok(_) => Ok(cx.string("Done")),
-                Err(_) => cx.throw_error("Error writing file")
-            }
-        },
-        Err(e) => cx.throw_error(e.to_string()),
+    match count_words_impl(&filepath) {
+        Ok(_) => Ok(cx.undefined()),
+        Err(e) => cx.throw_error(e.to_string())
     }
 }
 
