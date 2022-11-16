@@ -81,3 +81,21 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("countWords", count_words)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn perf_test() {
+        // let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        // d.push("resources/test");
+
+        // println!("{}", d.display());
+
+        let start = std::time::Instant::now();
+        count_words_impl("./t8.shakespeare.txt").expect("Failed to count words");
+        let duration = start.elapsed();
+        println!("Time elapsed in expensive_function() is: {:?}", duration);
+    }
+}
